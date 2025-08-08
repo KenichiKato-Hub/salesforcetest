@@ -13,7 +13,19 @@ from salesforce_service import SalesforceService, SalesforceCredentials, Salesfo
 # FastAPIアプリケーションの初期化
 app = FastAPI(
     title="Salesforce接続テストAPI",
-    description="Salesforceへの接続テストを実行するAPIサーバー",
+    description="""
+    セキュリティトークンベース認証を使用してSalesforceへの接続テストを実行するAPIサーバー
+    
+    ## 認証方式
+    - **セキュリティトークン認証**: ユーザー名 + パスワード + セキュリティトークン
+    - OAuth2認証よりもシンプルで、サーバーサイドアプリケーションに適用
+    - IPアドレス制限を回避可能
+    
+    ## 主な機能
+    - Salesforce接続テスト
+    - API制限情報の取得
+    - SOQLクエリの実行とテスト
+    """,
     version="1.0.0",
     docs_url="/",  # Swagger UIをルートパスで表示
     redoc_url="/redoc"
@@ -38,10 +50,15 @@ async def health_check():
 @app.post("/salesforce/test-connection", response_model=SalesforceTestResult)
 async def test_salesforce_connection(credentials: SalesforceCredentials):
     """
-    Salesforceへの接続テストを実行
+    セキュリティトークンを使用してSalesforceへの接続テストを実行
+    
+    ## セキュリティトークン認証について
+    - ユーザー名 + パスワード + セキュリティトークンの組み合わせで認証
+    - セキュリティトークンはSalesforceの設定画面から取得可能
+    - IPアドレス制限がある環境でも利用可能
     
     Args:
-        credentials: Salesforce認証情報
+        credentials: Salesforce API認証情報（セキュリティトークン必須）
         
     Returns:
         SalesforceTestResult: 接続テストの結果

@@ -9,11 +9,14 @@ from pydantic import BaseModel
 
 
 class SalesforceCredentials(BaseModel):
-    """Salesforce認証情報のモデル"""
-    username: str
-    password: str
-    security_token: str
-    domain: str = "login"  # 'login' or 'test'
+    """
+    Salesforce API認証情報のモデル
+    セキュリティトークンベースの認証を使用します
+    """
+    username: str  # Salesforceのユーザー名
+    password: str  # Salesforceのパスワード
+    security_token: str  # セキュリティトークン（必須）
+    domain: str = "login"  # 'login'（本番）または 'test'（Sandbox）
 
 
 class SalesforceTestResult(BaseModel):
@@ -25,27 +28,54 @@ class SalesforceTestResult(BaseModel):
 
 
 class SalesforceService:
-    """Salesforce接続とテスト用のサービスクラス"""
+    """Salesforce接続とテスト用のサービスクラス（セキュリティトークン認証）"""
     
     def __init__(self):
         self.sf_client: Optional[Salesforce] = None
     
-    def connect(self, credentials: SalesforceCredentials) -> SalesforceTestResult:
+    def _validate_security_token(self, token: str) -> bool:
         """
-        Salesforceに接続してテストを実行
+        セキュリティトークンの基本的な形式検証
         
         Args:
-            credentials: Salesforce認証情報
+            token: セキュリティトークン
+            
+        Returns:
+            bool: トークンが有効な形式かどうか
+        """
+        # セキュリティトークンの基本検証（25文字の英数字）
+        if not token or len(token) != 25:
+            return False
+        return token.isalnum()
+    
+    def connect(self, credentials: SalesforceCredentials) -> SalesforceTestResult:
+        """
+        セキュリティトークンを使用してSalesforce APIに接続してテストを実行
+        
+        このメソッドはSalesforceのセキュリティトークンベース認証を使用します：
+        - ユーザー名 + パスワード + セキュリティトークンの組み合わせ
+        - OAuth2よりもシンプルで、サーバーサイドアプリケーションに適している
+        - IPアドレス制限を回避できる認証方式
+        
+        Args:
+            credentials: Salesforce API認証情報（セキュリティトークン必須）
             
         Returns:
             SalesforceTestResult: 接続テストの結果
         """
         try:
-            # Salesforceクライアントを作成
+            # セキュリティトークンの形式検証
+            if not self._validate_security_token(credentials.security_token):
+                return SalesforceTestResult(
+                    success=False,
+                    message="セキュリティトークンの形式が正しくありません（25文字の英数字である必要があります）"
+                )
+            
+            # セキュリティトークンベースでSalesforceクライアントを作成
             self.sf_client = Salesforce(
                 username=credentials.username,
                 password=credentials.password,
-                security_token=credentials.security_token,
+                security_token=credentials.security_token,  # セキュリティトークンは必須
                 domain=credentials.domain
             )
             
